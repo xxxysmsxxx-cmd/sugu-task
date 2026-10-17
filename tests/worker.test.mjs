@@ -68,3 +68,22 @@ test('task CRUD enforces owner and same-origin writes', async () => {
   response = await worker.fetch(req(`/api/tasks/${task.id}`,'DELETE','alice'),env); assert.equal(response.status,200);
   response = await worker.fetch(req('/api/tasks','GET','alice'),env); assert.deepEqual(await response.json(),[]);
 });
+
+test('Workers AI extracts bounded tasks using the local date', async () => {
+  let model, options;
+  const env = { SESSION_SECRET: secret, AI: { async run(selected, input) {
+    model = selected; options = input;
+    return { response: '```json\n{"tasks":[{"title":"  請求書を送る  ","due_date":"2026-10-19"},{"title":"資料を確認する","due_date":"invalid"}]}\n```' };
+  } } };
+  const response = await worker.fetch(new Request('https://example.com/api/ai/parse', {
+    method: 'POST', headers: { cookie: auth('alice'), origin: 'https://example.com', 'content-type': 'application/json' },
+    body: JSON.stringify({ text: '明日、請求書を送る。資料を確認する。', today: '2026-10-18' })
+  }), env);
+  assert.equal(response.status, 200);
+  assert.equal(model, '@cf/meta/llama-3.1-8b-instruct-fast');
+  assert.match(options.messages[0].content, /2026-10-18/);
+  assert.deepEqual(await response.json(), { tasks: [
+    { title: '請求書を送る', due_date: '2026-10-19' },
+    { title: '資料を確認する', due_date: null }
+  ] });
+});

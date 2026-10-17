@@ -82,9 +82,9 @@ async function aiParse(request, env) {
   if (!env.AI) return bad('AIが設定されていません', 503);
   const body = await readBody(request), text = typeof body.text === 'string' ? body.text.trim().slice(0, 2000) : '';
   if (!text) return bad('文章を入力してください');
-  const today = new Date().toISOString().slice(0,10);
+  const today = cleanDue(body.today) || new Date().toISOString().slice(0,10);
   const result = await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', { messages: [
-    { role: 'system', content: `Extract actionable tasks from Japanese text. Today is ${today} UTC. Return only JSON with shape {"tasks":[{"title":"...","due_date":"YYYY-MM-DD or null"}]}. Maximum 8 tasks. Preserve intent. No explanations.` },
+    { role: 'system', content: `Extract actionable tasks from Japanese text. The user's local date is ${today}. Return only JSON with shape {"tasks":[{"title":"...","due_date":"YYYY-MM-DD or null"}]}. Maximum 8 tasks. Preserve intent. No explanations.` },
     { role: 'user', content: text }
   ], max_tokens: 500 });
   const output = typeof result.response === 'string' ? result.response : JSON.stringify(result);
