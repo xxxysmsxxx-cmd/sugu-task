@@ -1,5 +1,5 @@
 const $ = (s) => document.querySelector(s);
-const state = { tasks: [], filter: 'inbox', demo: new URLSearchParams(location.search).has('demo'), user: null };
+const state = { tasks: [], filter: 'inbox', user: null };
 const labels = { inbox: '未着手', doing: '進行中', done: '完了' };
 const order = ['inbox', 'doing', 'done'];
 let toastTimer;
@@ -8,7 +8,6 @@ function toast(message) {
   const el = $('#toast'); el.textContent = message; el.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
-function demoStore() { localStorage.setItem('sugu-demo-tasks', JSON.stringify(state.tasks)); }
 async function api(path, options = {}) {
   const response = await fetch(path, { credentials: 'same-origin', headers: { 'content-type': 'application/json' }, ...options });
   const data = await response.json().catch(() => ({}));
@@ -49,27 +48,24 @@ function wireSwipe(el, task) {
 }
 async function addTask(title, due_date=null) {
   const clean=title.trim(); if(!clean)return;
-  let task;
-  if(state.demo){task={id:crypto.randomUUID(),title:clean,note:'',status:'inbox',due_date,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};state.tasks.unshift(task);demoStore();}
-  else {task=await api('/api/tasks',{method:'POST',body:JSON.stringify({title:clean,due_date})});state.tasks.unshift(task);}
+  const task=await api('/api/tasks',{method:'POST',body:JSON.stringify({title:clean,due_date})});state.tasks.unshift(task);
   state.filter='inbox';render();toast('追加しました');
 }
 async function updateStatus(task,status) {
   const previous=task.status; task.status=status;task.updated_at=new Date().toISOString();render();
-  try { if(state.demo) demoStore(); else Object.assign(task,await api(`/api/tasks/${encodeURIComponent(task.id)}`,{method:'PATCH',body:JSON.stringify({status})})); toast(`${labels[status]}に移動しました`); }
+  try { Object.assign(task,await api(`/api/tasks/${encodeURIComponent(task.id)}`,{method:'PATCH',body:JSON.stringify({status})})); toast(`${labels[status]}に移動しました`); }
   catch(e){task.status=previous;render();toast(e.message);}
 }
 async function removeTask(task) {
   const index=state.tasks.indexOf(task);state.tasks.splice(index,1);render();
-  try {if(state.demo)demoStore();else await api(`/api/tasks/${encodeURIComponent(task.id)}`,{method:'DELETE'});toast('削除しました');}
+  try {await api(`/api/tasks/${encodeURIComponent(task.id)}`,{method:'DELETE'});toast('削除しました');}
   catch(e){state.tasks.splice(index,0,task);render();toast(e.message);}
 }
 async function init() {
   const today=new Date();$('#todayLabel').textContent=new Intl.DateTimeFormat('ja-JP',{month:'long',day:'numeric',weekday:'long'}).format(today);
   try {
-    if(state.demo){state.user={name:'デモ',email:'demo@example.com'};state.tasks=JSON.parse(localStorage.getItem('sugu-demo-tasks')||'[]');}
-    else {const session=await api('/api/session');if(!session.authenticated){$('#skeleton').hidden=true;$('#signin').hidden=false;return;}state.user=session.user;state.tasks=await api('/api/tasks');}
-    $('#avatarText').textContent=(state.user.name||state.user.email||'?').slice(0,1).toUpperCase();$('#accountEmail').textContent=state.demo?'デモモード':state.user.email;
+    const session=await api('/api/session');if(!session.authenticated){$('#skeleton').hidden=true;$('#signin').hidden=false;return;}state.user=session.user;state.tasks=await api('/api/tasks');
+    $('#avatarText').textContent=(state.user.name||state.user.email||'?').slice(0,1).toUpperCase();$('#accountEmail').textContent=state.user.email;
     render();$('#skeleton').hidden=true;$('#shell').hidden=false;
     const input=$('#quickInput'); if(location.hash==='#add')input.focus();
   } catch(e){$('#skeleton').hidden=true;$('#signin').hidden=false;toast(e.message);}
@@ -80,5 +76,5 @@ $('#focusButton').onclick=()=>{window.scrollTo({top:0,behavior:'smooth'});setTim
 $('#homeButton').onclick=()=>{state.filter='inbox';render();window.scrollTo({top:0,behavior:'smooth'});};
 $('#aiButton').onclick=()=>$('#aiDialog').showModal();$('#aiCancel').onclick=()=>$('#aiDialog').close();
 $('#accountButton').onclick=()=>$('#accountDialog').showModal();
-$('#aiForm').addEventListener('submit',async e=>{e.preventDefault();const text=$('#aiText').value.trim();if(!text)return;const button=$('#aiSubmit');button.disabled=true;button.textContent='整理中…';try{if(state.demo){toast('AI整理はログイン後に利用できます');return;}const now=new Date();const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;const result=await api('/api/ai/parse',{method:'POST',body:JSON.stringify({text,today})});for(const item of result.tasks)await addTask(item.title,item.due_date||null);$('#aiText').value='';$('#aiDialog').close();toast(`${result.tasks.length}件のタスクを追加しました`);}catch(err){toast(err.message);}finally{button.disabled=false;button.textContent='タスクを作成';}});
+$('#aiForm').addEventListener('submit',async e=>{e.preventDefault();const text=$('#aiText').value.trim();if(!text)return;const button=$('#aiSubmit');button.disabled=true;button.textContent='整理中…';try{const now=new Date();const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;const result=await api('/api/ai/parse',{method:'POST',body:JSON.stringify({text,today})});for(const item of result.tasks)await addTask(item.title,item.due_date||null);$('#aiText').value='';$('#aiDialog').close();toast(`${result.tasks.length}件のタスクを追加しました`);}catch(err){toast(err.message);}finally{button.disabled=false;button.textContent='タスクを作成';}});
 init();
