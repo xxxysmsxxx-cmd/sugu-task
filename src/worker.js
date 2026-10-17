@@ -40,7 +40,7 @@ async function googleStart(request, env) {
   const url = new URL(request.url); const redirect = `${url.origin}/auth/callback`;
   const auth = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   auth.search = new URLSearchParams({ client_id: env.GOOGLE_CLIENT_ID, redirect_uri: redirect, response_type: 'code', scope: 'openid email profile', state, nonce, code_challenge: challenge, code_challenge_method: 'S256', prompt: 'select_account' }).toString();
-  const response = Response.redirect(auth, 302);
+  const response = new Response(null, { status: 302, headers: { location: auth.toString() } });
   response.headers.append('set-cookie', secureCookie('sugu_oauth', `${state}.${nonce}.${verifier}`, 600, '/auth'));
   return response;
 }
@@ -50,7 +50,7 @@ async function googleCallback(request, env) {
   const tokensResponse = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code: url.searchParams.get('code'), client_id: env.GOOGLE_CLIENT_ID, client_secret: env.GOOGLE_CLIENT_SECRET, redirect_uri: `${url.origin}/auth/callback`, grant_type: 'authorization_code', code_verifier: verifier }) });
   if (!tokensResponse.ok) return bad('Googleログインに失敗しました', 401);
   const tokens = await tokensResponse.json(); const user = await verifyGoogleToken(tokens.id_token, env.GOOGLE_CLIENT_ID, nonce);
-  const response = Response.redirect(url.origin, 302);
+  const response = new Response(null, { status: 302, headers: { location: url.origin } });
   response.headers.append('set-cookie', secureCookie('sugu_session', await signSession(user, env.SESSION_SECRET), 30 * 86400));
   response.headers.append('set-cookie', secureCookie('sugu_oauth', '', 0, '/auth'));
   return response;
@@ -96,9 +96,9 @@ async function aiParse(request, env) {
 export default { async fetch(request, env) {
   try {
     const url = new URL(request.url), path = url.pathname;
-    if (path === '/auth/google' && request.method === 'GET') return googleStart(request,env);
-    if (path === '/auth/callback' && request.method === 'GET') return googleCallback(request,env);
-    if (path === '/auth/logout' && request.method === 'GET') { const r=Response.redirect(url.origin,302);r.headers.append('set-cookie',secureCookie('sugu_session','',0));return r; }
+    if (path === '/auth/google' && request.method === 'GET') return await googleStart(request,env);
+    if (path === '/auth/callback' && request.method === 'GET') return await googleCallback(request,env);
+    if (path === '/auth/logout' && request.method === 'GET') { const r=new Response(null,{status:302,headers:{location:url.origin}});r.headers.append('set-cookie',secureCookie('sugu_session','',0));return r; }
     if (path === '/api/session' && request.method === 'GET') { const user=await session(request,env);return json(user ? {authenticated:true,user:{name:user.name,email:user.email}} : {authenticated:false}); }
     if (path.startsWith('/api/')) {
       const user=await session(request,env); if (!user) return bad('ログインが必要です',401);

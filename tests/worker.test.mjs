@@ -40,6 +40,17 @@ test('Google login requires configured credentials', async () => {
   assert.equal(response.status, 503);
 });
 
+test('Google login and logout set cookies on redirects', async () => {
+  const env = { GOOGLE_CLIENT_ID: 'test-id', GOOGLE_CLIENT_SECRET: 'test-secret', SESSION_SECRET: secret };
+  const start = await worker.fetch(new Request('https://example.com/auth/google'), env);
+  assert.equal(start.status, 302);
+  assert.match(start.headers.get('location'), /^https:\/\/accounts\.google\.com\//);
+  assert.match(start.headers.get('set-cookie'), /^sugu_oauth=/);
+  const logout = await worker.fetch(new Request('https://example.com/auth/logout'), env);
+  assert.equal(logout.status, 302);
+  assert.match(logout.headers.get('set-cookie'), /^sugu_session=; Max-Age=0/);
+});
+
 test('Google callback rejects missing state', async () => {
   const response = await worker.fetch(new Request('https://example.com/auth/callback?code=abc&state=xyz'), {});
   assert.equal(response.status, 400);
