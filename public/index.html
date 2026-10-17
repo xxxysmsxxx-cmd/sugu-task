@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#f6f7f8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="description" content="すぐにメモできるタスク管理アプリ" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <title>すぐタスク</title>
+</head>
+<body>
+  <div id="app">
+    <div id="skeleton" class="skeleton" aria-label="読み込み中" role="status">
+      <div class="sk-top"></div><div class="sk-title"></div><div class="sk-input"></div>
+      <div class="sk-tabs"></div><div class="sk-card"></div><div class="sk-card"></div><div class="sk-card"></div>
+      <div class="sk-dock"></div>
+    </div>
+    <div id="shell" class="shell" hidden>
+      <header class="topbar">
+        <div class="wordmark"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 6"/></svg></span><span>すぐタスク</span></div>
+        <button id="accountButton" class="avatar" aria-label="アカウント"><span id="avatarText">?</span></button>
+      </header>
+      <main>
+        <section class="heading"><p id="todayLabel" class="eyebrow"></p><h1>タスク</h1><p id="countLabel" class="count"></p></section>
+        <form id="quickForm" class="quick glass" autocomplete="off">
+          <label class="sr-only" for="quickInput">タスクを入力</label>
+          <span class="quick-icon" aria-hidden="true">＋</span>
+          <input id="quickInput" name="title" maxlength="180" placeholder="思いついたら、ここに入力" enterkeyhint="done" required />
+          <button class="add-button" type="submit" aria-label="タスクを追加"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+        </form>
+        <div class="section-row"><h2>一覧</h2><span class="swipe-hint">横にスワイプして移動 <span aria-hidden="true">↔</span></span></div>
+        <nav class="tabs" aria-label="タスクの状態">
+          <button class="tab active" data-filter="inbox" aria-current="page">未着手 <span data-count="inbox">0</span></button>
+          <button class="tab" data-filter="doing">進行中 <span data-count="doing">0</span></button>
+          <button class="tab" data-filter="done">完了 <span data-count="done">0</span></button>
+        </nav>
+        <div id="taskList" class="task-list" aria-live="polite"></div>
+        <div id="empty" class="empty" hidden><div class="empty-icon">✓</div><p id="emptyText">タスクはありません</p></div>
+      </main>
+      <div class="dock-wrap"><nav class="dock glass" aria-label="主な操作"><button id="homeButton" class="dock-item selected" aria-label="タスク一覧"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>タスク</span></button><button id="focusButton" class="dock-item" aria-label="入力欄に移動"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>追加</span></button><button id="aiButton" class="dock-item" aria-label="AIでタスクを整理"><svg viewBox="0 0 24 24"><path d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Zm7 14 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></svg><span>AI整理</span></button></nav></div>
+    </div>
+    <div id="signin" class="signin" hidden><div class="signin-card"><div class="signin-mark">✓</div><h1>すぐタスク</h1><p>思いついた瞬間に記録する。</p><a class="google-button" href="/auth/google"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.7 1.2 9.2 3.6l6.8-6.8A23.7 23.7 0 0 0 24 0C14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.5 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.9 24.6c0-1.6-.2-3.2-.5-4.6H24v9h12.8a11 11 0 0 1-4.8 7.2l7.7 6A23.5 23.5 0 0 0 46.9 24.6z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.7 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 12-2.2 16-5.8l-7.7-6a14.4 14.4 0 0 1-21.8-7.5l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Googleでログイン</a></div></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <dialog id="accountDialog" class="dialog"><form method="dialog"><h2>アカウント</h2><p id="accountEmail"></p><button class="dialog-close" value="close">閉じる</button><a href="/auth/logout" class="logout">ログアウト</a></form></dialog>
+    <dialog id="aiDialog" class="dialog"><form method="dialog" id="aiForm"><h2>AIで整理</h2><p>文章からタスクを取り出します。</p><label for="aiText" class="sr-only">整理する文章</label><textarea id="aiText" rows="5" maxlength="2000" placeholder="例：明日の午前中に請求書を送る。金曜日までに資料を確認する。"></textarea><div class="dialog-actions"><button type="button" id="aiCancel" class="dialog-close">キャンセル</button><button type="submit" id="aiSubmit" class="primary-button">タスクを作成</button></div></form></dialog>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
